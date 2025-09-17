@@ -120,7 +120,7 @@ export const handler2 = async (event: IStoreAdaptorDataHandlerEvent) => {
 
   const errorObjects = errors.map(({ raw, item, message }: any) => {
     return {
-      adapter: `${item.name} - ${item.versionKey ?? ''}`,
+      adapter: `${item.name}`,
       message: shortenString(message),
       chain: raw.chain,
       // stack: raw.stack?.split('\n').slice(1, 2).join('\n')
@@ -177,8 +177,7 @@ export const handler2 = async (event: IStoreAdaptorDataHandlerEvent) => {
     let refillYesterdayPromise = undefined
     let errorObject: any
     // Get adapter info
-    let { id, id2, module, } = protocol;
-    // console.log(`Adapter found ${id} ${module} ${versionKey}`)
+    let { id2, module, } = protocol;
 
     try {
       // Import adaptor

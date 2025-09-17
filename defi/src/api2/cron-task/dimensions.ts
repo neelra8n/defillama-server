@@ -262,10 +262,8 @@ async function run() {
       const protocolData: any = {}
       protocol.summaries = {} as any
       protocol.info = { ...(tvlProtocolInfo ?? {}), };
-      protocol.misc = {
-        versionKey: info.versionKey,  // TODO: check, this is not stored in cache correctly and as workaround we are storing it in info object
-      };
-      const infoKeys = ['name', 'defillamaId', 'displayName', 'module', 'category', 'logo', 'chains', 'methodologyURL', 'methodology', 'gecko_id', 'forkedFrom', 'twitter', 'audits', 'description', 'address', 'url', 'audit_links', 'versionKey', 'cmcId', 'id', 'github', 'governanceID', 'treasury', 'parentProtocol', 'previousNames', 'hallmarks', 'defaultChartView']
+      protocol.misc = {      };
+      const infoKeys = ['name', 'defillamaId', 'displayName', 'module', 'category', 'logo', 'chains', 'methodologyURL', 'methodology', 'gecko_id', 'forkedFrom', 'twitter', 'audits', 'description', 'address', 'url', 'audit_links', 'cmcId', 'id', 'github', 'governanceID', 'treasury', 'parentProtocol', 'previousNames', 'hallmarks', 'defaultChartView']
 
       infoKeys.forEach(key => protocol.info[key] = (info as any)[key] ?? protocol.info[key] ?? null)
 
@@ -635,13 +633,13 @@ function mergeChildRecords(protocol: any, childProtocolData: any[]) {
   info.linkedProtocols = [info.name].concat(childProtocols)
   childProtocolData.forEach(({ records, info: childData }: any) => {
 
-    const versionKey = childData.name ?? childData.displayName ?? childData.versionKey
+    const childProtocolLabel = childData.name ?? childData.displayName
     childData.linkedProtocols = info.linkedProtocols
 
-    if (!versionKey) console.log('versionKey is missing', childData)
+    if (!childProtocolLabel) console.log('childProtocolLabel is missing', childData)
 
     // update child  metadata and chain info
-    // info.childProtocols.push({ ...childData, versionKey })
+    // info.childProtocols.push({ ...childData, childProtocolLabel })
     if (!info.chains) info.chains = []
     info.chains = Array.from(new Set(info.chains.concat(childData.chains ?? [])))
 
@@ -651,10 +649,10 @@ function mergeChildRecords(protocol: any, childProtocolData: any[]) {
       Object.entries(record.aggregated).forEach(([recordType, childAggData]: any) => {
         if (!parentRecords[timeS].aggregated[recordType]) parentRecords[timeS].aggregated[recordType] = { value: 0, chains: {} }
         if (!parentRecords[timeS].breakdown[recordType]) parentRecords[timeS].breakdown[recordType] = {}
-        if (!parentRecords[timeS].breakdown[recordType][versionKey]) parentRecords[timeS].breakdown[recordType][versionKey] = { value: 0, chains: {} }
+        if (!parentRecords[timeS].breakdown[recordType][childProtocolLabel]) parentRecords[timeS].breakdown[recordType][childProtocolLabel] = { value: 0, chains: {} }
 
         const aggItem = parentRecords[timeS].aggregated[recordType]
-        const breakdownItem = parentRecords[timeS].breakdown[recordType][versionKey]
+        const breakdownItem = parentRecords[timeS].breakdown[recordType][childProtocolLabel]
         aggItem.value += childAggData.value
         breakdownItem.value = childAggData.value
         Object.entries(childAggData.chains).forEach(([chain, value]: any) => {
@@ -742,7 +740,7 @@ const isLessThanThreeMonthsAgo = (timeS: string) => timeSToUnix(timeS) > ThreeMo
 
 const accumulativeRecordTypeSet = new Set(Object.values(ACCOMULATIVE_ADAPTOR_TYPE))
 // fill all missing data with the last available data
-function getProtocolRecordMapWithMissingData({ records, info = {}, adapterType, metadata, }: { records: IJSON<any>, info?: any, adapterType: any, metadata: any, versionKey?: string }) {
+function getProtocolRecordMapWithMissingData({ records, info = {}, adapterType, metadata, }: { records: IJSON<any>, info?: any, adapterType: any, metadata: any, }) {
   const { whitelistedSpikeSet = new Set() } = getSpikeConfig(metadata)
   const allKeys = Object.keys(records)
 
@@ -870,7 +868,7 @@ function mergeSpikeConfigs(childProtocols: any[]) {
     }
   })
   const response = [...genuineSpikesSet]
-  return response.length ? response : undefined
+  return response
 }
 
 function getSpikeConfig(protocol: any): SpikeConfig {
