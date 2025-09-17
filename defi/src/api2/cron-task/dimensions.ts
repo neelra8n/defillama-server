@@ -227,7 +227,7 @@ async function run() {
       addProtocolData({
         protocolId: parentId, dimensionProtocolInfo: {
           ...info,
-          cleanRecordsConfig: mergeSpikeConfigs(childDimensionsInfo)
+          genuineSpikes: mergeSpikeConfigs(childDimensionsInfo)
         }, isParentProtocol: true, adapterType, skipChainSummary: true, records: parentProtocol.records
       }) // compute summary data
     }
@@ -743,7 +743,7 @@ const isLessThanThreeMonthsAgo = (timeS: string) => timeSToUnix(timeS) > ThreeMo
 const accumulativeRecordTypeSet = new Set(Object.values(ACCOMULATIVE_ADAPTOR_TYPE))
 // fill all missing data with the last available data
 function getProtocolRecordMapWithMissingData({ records, info = {}, adapterType, metadata, }: { records: IJSON<any>, info?: any, adapterType: any, metadata: any, versionKey?: string }) {
-  const { allSpikesAreGenuine, whitelistedSpikeSet = new Set() } = getSpikeConfig(metadata)
+  const { whitelistedSpikeSet = new Set() } = getSpikeConfig(metadata)
   const allKeys = Object.keys(records)
 
   // there is no point in maintaining accumulative data for protocols on all the records
@@ -773,7 +773,7 @@ function getProtocolRecordMapWithMissingData({ records, info = {}, adapterType, 
       // code for logging spikes
       const currentValue = record.aggregated?.[key]?.value
       // we check if we have at least 7 days of data & value is higher than a million before checking if it is a spike
-      if (idx > 7 && currentValue > 1e7 && !allSpikesAreGenuine && !whitelistedSpikeSet.has(timeS)) {
+      if (idx > 7 && currentValue > 1e7 && !whitelistedSpikeSet.has(timeS)) {
         const surroundingKeys = getSurroundingKeysExcludingCurrent(allKeys, idx)
         const highestCloseValue = surroundingKeys.map(i => records[i]?.aggregated?.[key]?.value ?? 0).filter(i => i).reduce((a, b) => Math.max(a, b), 0)
         let isSpike = false
@@ -857,35 +857,26 @@ function getPercentage(a: number, b: number) {
 }
 
 type SpikeConfig = {
-  allSpikesAreGenuine?: boolean
   whitelistedSpikeSet?: Set<string>
 }
 
 function mergeSpikeConfigs(childProtocols: any[]) {
-  const cleanRecordsConfig: any = {}
-  childProtocols.forEach(({ cleanRecordsConfig: childConfig }: any = {}) => {
-    if (childConfig?.genuineSpikes === true) {
-      cleanRecordsConfig.genuineSpikes = true
-    } else if (typeof childConfig?.genuineSpikes === 'object') {
-      cleanRecordsConfig.genuineSpikes = cleanRecordsConfig.genuineSpikes ?? {}
-      Object.entries(childConfig.genuineSpikes).forEach(([key, value]: any) => {
-        if (!value) return;
-        cleanRecordsConfig.genuineSpikes[key] = value
+  const genuineSpikesSet = new Set<string>()
+  childProtocols.forEach((childConfig: any = {}) => {
+    if (Array.isArray(childConfig.genuineSpikes)) {
+      childConfig.genuineSpikes.forEach((key: any) => {
+        genuineSpikesSet.add(key)
       })
     }
   })
-  return cleanRecordsConfig
+  const response = [...genuineSpikesSet]
+  return response.length ? response : undefined
 }
 
 function getSpikeConfig(protocol: any): SpikeConfig {
-  let info = (protocol as any)?.cleanRecordsConfig?.genuineSpikes ?? {}
-  if (info === true) return { allSpikesAreGenuine: true, }
-  const whitelistedSpikeSet = new Set() as Set<string>
-  Object.entries(info).forEach(([key, value]: any) => {
-    if (!value) return;
-    const timeS = unixTimeToTimeS(key)
-    whitelistedSpikeSet.add(timeS)
-  })
+  if (!protocol?.genuineSpikes) return {}
+  let info = (protocol as any)?.genuineSpikes ?? []
+  const whitelistedSpikeSet = new Set(info.map(unixTimeToTimeS)) as Set<string>
   return { whitelistedSpikeSet }
 }
 
